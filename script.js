@@ -1,156 +1,154 @@
-/* script.js — Updated & robust for Prayag Agro Store */
+/* script.js — Full, robust behaviors for Prayag Agro Store */
 
-/* ========== Utilities ========== */
-const qs = (sel, ctx = document) => (ctx || document).querySelector(sel);
-const qsa = (sel, ctx = document) =>
+/* ========== small helpers ========== */
+const $ = (sel, ctx = document) => (ctx || document).querySelector(sel);
+const $$ = (sel, ctx = document) =>
   Array.from((ctx || document).querySelectorAll(sel));
 
-/* ========== NAVBAR: toggle, scroll, wiring ==========
-   - toggleMenu(): robust show/hide for mobile menu
-   - scrollToId(id): smooth scroll and close mobile menu
-   - wireNavButtons(): attaches handlers to nav + mobile menu buttons
-*/
+/* ========== NAV: toggle & smooth scroll ========== */
 function toggleMenu() {
-  const menu = qs("#mobileMenu");
-  const btn = qs(".menu-toggle");
-  if (!menu || !btn) return;
+  const navLinks = $(".nav-links");
+  const toggle = $(".menu-toggle");
+  if (!navLinks || !toggle) return;
 
-  const open = menu.getAttribute("data-open") === "true";
-  if (open) {
-    menu.style.display = "none";
-    menu.setAttribute("aria-hidden", "true");
-    menu.setAttribute("data-open", "false");
-    btn.setAttribute("aria-expanded", "false");
-  } else {
-    menu.style.display = "block";
-    menu.setAttribute("aria-hidden", "false");
-    menu.setAttribute("data-open", "true");
-    btn.setAttribute("aria-expanded", "true");
+  // stop bubbling so outside click handler doesn't immediately close it
+  try {
+    window.event?.stopPropagation?.();
+  } catch (e) {}
 
-    // close if clicked outside
-    setTimeout(() => {
-      const outsideClickHandler = (ev) => {
-        if (!menu.contains(ev.target) && !btn.contains(ev.target)) {
-          menu.style.display = "none";
-          menu.setAttribute("aria-hidden", "true");
-          menu.setAttribute("data-open", "false");
-          btn.setAttribute("aria-expanded", "false");
-          document.removeEventListener("click", outsideClickHandler);
-        }
-      };
-      document.addEventListener("click", outsideClickHandler);
-    }, 50);
+  const nowOpen = navLinks.classList.toggle("open");
+  toggle.setAttribute("aria-expanded", String(nowOpen));
+
+  // manage outside click
+  if (nowOpen) {
+    // one-time outside click capture
+    const outside = (ev) => {
+      if (!navLinks.contains(ev.target) && !toggle.contains(ev.target)) {
+        navLinks.classList.remove("open");
+        toggle.setAttribute("aria-expanded", "false");
+        document.removeEventListener("click", outside, true);
+      }
+    };
+    // small delay to avoid immediate closure from the same click
+    setTimeout(() => document.addEventListener("click", outside, true), 40);
   }
 }
 
 function scrollToId(id) {
-  if (!id) return;
+  if (!id) return false;
   const el = document.getElementById(id);
-  if (!el) return;
-
-  // close mobile menu if open
-  const menu = qs("#mobileMenu");
-  if (menu) {
-    menu.style.display = "none";
-    menu.setAttribute("aria-hidden", "true");
-    menu.setAttribute("data-open", "false");
+  if (!el) {
+    console.warn("scrollToId: no element", id);
+    return false;
   }
-  qs(".menu-toggle")?.setAttribute("aria-expanded", "false");
 
-  // smooth scroll and focus for accessibility
+  // close mobile nav if open
+  const navLinks = $(".nav-links");
+  const menuToggle = $(".menu-toggle");
+  if (navLinks && navLinks.classList.contains("open")) {
+    navLinks.classList.remove("open");
+    menuToggle?.setAttribute("aria-expanded", "false");
+  }
+
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   try {
     el.setAttribute("tabindex", "-1");
     el.focus({ preventScroll: true });
-  } catch (e) {
-    /* ignore */
-  }
+  } catch (e) {}
+  return true;
 }
 
-function _extractTargetFrom(el) {
-  if (!el) return null;
-  if (el.dataset && el.dataset.target) return el.dataset.target;
-  // onclick attr like scrollToId('products')
-  const onclick = el.getAttribute && el.getAttribute("onclick");
-  if (onclick) {
-    const m = onclick.match(/scrollToId\(['"]([^'"]+)['"]\)/);
-    if (m) return m[1];
-  }
-  const href = el.getAttribute && el.getAttribute("href");
-  if (href && href.startsWith("#")) return href.slice(1);
-  return null;
-}
-
-function wireNavButtons() {
-  // wire menu-toggle
-  const menuToggle = qs(".menu-toggle");
-  if (menuToggle && !menuToggle.__wired) {
-    menuToggle.addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleMenu();
-    });
-    menuToggle.__wired = true;
-  }
-
-  // desktop nav buttons and mobile menu buttons
-  const navButtons = Array.from(
-    document.querySelectorAll(".nav .btn, #mobileMenu button")
-  );
-  navButtons.forEach((btn) => {
-    if (btn.__navWired) return;
-    btn.__navWired = true;
-    btn.addEventListener(
+/* ========== wire header nav buttons (desktop) ========== */
+function wireHeaderButtons() {
+  // desktop/nav-links primary wiring: buttons inside .nav-links and .nav
+  $$(".nav-links .btn, .nav .btn, .nav-links a, .nav a").forEach((el) => {
+    if (el.__navWired) return;
+    el.__navWired = true;
+    el.addEventListener(
       "click",
       (ev) => {
-        // if button has explicit behavior (no target) do nothing
-        const target = _extractTargetFrom(btn);
-        if (target) {
+        // try to get target from data-target, href#id, or onclick pattern
+        const dt = el.dataset?.target;
+        if (dt) {
           ev.preventDefault();
-          scrollToId(target);
-        } else {
-          // let other handlers run (e.g., openEnquiry) — do not intercept
+          scrollToId(dt);
+          return;
         }
-      },
-      { passive: false }
-    );
-  });
 
-  // also wire anchor links inside navs
-  const anchors = document.querySelectorAll(
-    ".nav a[href^='#'], #mobileMenu a[href^='#']"
-  );
-  anchors.forEach((a) => {
-    if (a.__navWired) return;
-    a.__navWired = true;
-    a.addEventListener(
-      "click",
-      (ev) => {
-        const id = (a.getAttribute("href") || "").replace(/^#/, "");
-        if (id) {
+        const href = el.getAttribute("href");
+        if (href && href.startsWith("#")) {
           ev.preventDefault();
-          scrollToId(id);
+          scrollToId(href.slice(1));
+          return;
         }
+
+        const onclick = el.getAttribute && el.getAttribute("onclick");
+        if (onclick) {
+          const m = onclick.match(/scrollToId\(['"]([^'"]+)['"]\)/);
+          if (m) {
+            ev.preventDefault();
+            scrollToId(m[1]);
+            return;
+          }
+        }
+
+        // otherwise allow custom handlers to run (e.g., open enquiry)
       },
       { passive: false }
     );
   });
 }
 
-/* ========== Product filtering ========== */
+/* ========== Mobile menu delegation (reliable for touch) ========== */
+function wireMobileDelegation() {
+  const mobile = $("#mobileMenu");
+  if (!mobile || mobile.__delegated) return;
+  mobile.__delegated = true;
+
+  const handle = (ev) => {
+    const btn = ev.target.closest("button, a");
+    if (!btn || !mobile.contains(btn)) return;
+    // attempt to extract id same as desktop
+    const dt = btn.dataset?.target;
+    if (dt) {
+      ev.preventDefault();
+      scrollToId(dt);
+      return;
+    }
+    const href = btn.getAttribute("href");
+    if (href && href.startsWith("#")) {
+      ev.preventDefault();
+      scrollToId(href.slice(1));
+      return;
+    }
+    const onclick = btn.getAttribute && btn.getAttribute("onclick");
+    if (onclick) {
+      const m = onclick.match(/scrollToId\(['"]([^'"]+)['"]\)/);
+      if (m) {
+        ev.preventDefault();
+        scrollToId(m[1]);
+        return;
+      }
+    }
+    // else let other behavior run (like openEnquiry)
+  };
+
+  mobile.addEventListener("click", handle, { passive: false });
+  mobile.addEventListener("touchend", handle, { passive: false });
+}
+
+/* ========== Filters ========== */
 function initFilters() {
-  const buttons = qsa(".filter-btn");
+  const buttons = $$(".filter-btn");
   if (!buttons.length) return;
   buttons.forEach((btn) => {
     btn.addEventListener("click", () => {
       buttons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       const cat = btn.dataset.cat || "all";
-      qsa("#productGrid .card").forEach((card) => {
-        if (cat === "all" || card.dataset.cat === cat) {
-          card.style.display = "";
-        } else {
-          card.style.display = "none";
-        }
+      $$("#productGrid .card").forEach((card) => {
+        card.style.display =
+          cat === "all" || card.dataset.cat === cat ? "" : "none";
       });
     });
   });
@@ -162,29 +160,24 @@ function addToEnquiry(id, title, btnRef = null) {
   if (!id || !title) return;
   if (!enquiry.some((i) => i.id === id)) enquiry.push({ id, title });
   updateEnquiryBadge();
-
-  // button feedback (if passed)
   try {
-    const btn = btnRef instanceof HTMLElement ? btnRef : null;
-    if (btn) {
-      const prev = btn.textContent;
-      btn.textContent = "Added";
-      btn.disabled = true;
+    if (btnRef instanceof HTMLElement) {
+      const prev = btnRef.textContent;
+      btnRef.textContent = "Added";
+      btnRef.disabled = true;
       setTimeout(() => {
-        btn.textContent = prev;
-        btn.disabled = false;
+        btnRef.textContent = prev;
+        btnRef.disabled = false;
       }, 900);
     }
-  } catch (e) {
-    // ignore
-  }
+  } catch (e) {}
 }
 function updateEnquiryBadge() {
-  const el = qs("#enqCount");
+  const el = $("#enqCount");
   if (el) el.textContent = String(enquiry.length);
 }
 function openEnquiry() {
-  if (enquiry.length === 0) {
+  if (!enquiry.length) {
     alert(
       "Your enquiry list is empty. Click 'Enquire' on product cards to add items."
     );
@@ -204,11 +197,11 @@ function openEnquiry() {
 }
 
 /* ========== Product modal ========== */
-const modalBackdrop = qs("#modalBackdrop");
-const modalTitle = qs("#modalTitle");
-const modalImage = qs("#modalImage");
-const modalDesc = qs("#modalDesc");
-const modalPrice = qs("#modalPrice");
+const modalBackdrop = $("#modalBackdrop");
+const modalTitle = $("#modalTitle");
+const modalImage = $("#modalImage");
+const modalDesc = $("#modalDesc");
+const modalPrice = $("#modalPrice");
 
 function openProduct(e, id) {
   if (e && typeof e.stopPropagation === "function") e.stopPropagation();
@@ -230,7 +223,7 @@ function openProduct(e, id) {
     3: {
       id: 3,
       title: "Plant Vitamin C — 100 gm",
-      desc: "Promotes root & foliage health. Use diluted.",
+      desc: "Promotes root & foliage health.",
       price: "₹180",
       img: "https://picsum.photos/seed/vit1/900/600",
     },
@@ -249,9 +242,9 @@ function openProduct(e, id) {
     price: "—",
     img: "https://picsum.photos/900/600",
   };
-  if (modalTitle) modalTitle.textContent = p.title;
-  if (modalDesc) modalDesc.textContent = p.desc;
-  if (modalPrice) modalPrice.textContent = p.price;
+  modalTitle && (modalTitle.textContent = p.title);
+  modalDesc && (modalDesc.textContent = p.desc);
+  modalPrice && (modalPrice.textContent = p.price);
   if (modalImage) {
     modalImage.src = p.img;
     modalImage.alt = p.title;
@@ -262,31 +255,28 @@ function showModal() {
   if (!modalBackdrop) return;
   modalBackdrop.style.display = "flex";
   modalBackdrop.setAttribute("aria-hidden", "false");
-  qs(".modal")?.focus?.();
+  $(".modal")?.focus?.();
 }
 function closeModal() {
   if (!modalBackdrop) return;
   modalBackdrop.style.display = "none";
   modalBackdrop.setAttribute("aria-hidden", "true");
 }
-if (modalBackdrop) {
-  modalBackdrop.addEventListener("click", (ev) => {
-    if (ev.target === modalBackdrop) closeModal();
-  });
-}
+modalBackdrop?.addEventListener("click", (ev) => {
+  if (ev.target === modalBackdrop) closeModal();
+});
 
-/* ========== Inquiry + Share Helpers ========= */
-const STORE_WHATSAPP_PHONE = "918144632145"; // change if needed (country code + number)
-const STORE_EMAIL = "prayagagrostore@gmai.com"; // change if needed
+/* ========== Inquiry + share (WhatsApp/Gmail) ========== */
+const STORE_WHATSAPP_PHONE = "918144632145";
+const STORE_EMAIL = "prayagagrostore@gmai.com";
 
-function submitInquiry(e) {
-  e.preventDefault();
-  const name = (qs("#inqName")?.value || "").trim();
-  const phone = (qs("#inqPhone")?.value || "").trim();
-  const email = (qs("#inqEmail")?.value || "").trim();
-  const msg = (qs("#inqMsg")?.value || "").trim();
-  const status = qs("#inqStatus");
-
+function submitInquiry(ev) {
+  ev.preventDefault();
+  const name = ($("#inqName")?.value || "").trim();
+  const phone = ($("#inqPhone")?.value || "").trim();
+  const email = ($("#inqEmail")?.value || "").trim();
+  const msg = ($("#inqMsg")?.value || "").trim();
+  const status = $("#inqStatus");
   if (!name || !phone) {
     if (status) {
       status.textContent = "Please enter your name and phone number.";
@@ -298,16 +288,14 @@ function submitInquiry(e) {
     status.textContent = "Preparing options...";
     status.style.color = "gray";
   }
-
   const messageLines = [
-    `Enquiry from Prayag Agro Store website:`,
+    "Enquiry from Prayag Agro Store website:",
     `Name: ${name}`,
     `Phone: ${phone}`,
     email ? `Email: ${email}` : null,
     msg ? `Message: ${msg}` : null,
   ].filter(Boolean);
   const message = messageLines.join("\n");
-
   showShareOptions({ message });
   if (status) {
     status.textContent = "Choose WhatsApp or Gmail to send your enquiry.";
@@ -316,78 +304,69 @@ function submitInquiry(e) {
 }
 
 function showShareOptions({ message }) {
-  const backdrop = qs("#shareBackdrop");
-  const preview = qs("#sharePreview");
-  const whatsappBtn = qs("#whatsappBtn");
-  const gmailBtn = qs("#gmailBtn");
+  const backdrop = $("#shareBackdrop");
+  const preview = $("#sharePreview");
+  const whatsappBtn = $("#whatsappBtn");
+  const gmailBtn = $("#gmailBtn");
   if (!backdrop || !preview || !whatsappBtn || !gmailBtn) return;
-
   preview.textContent = message;
-
   whatsappBtn.onclick = () => {
     const encoded = encodeURIComponent(message);
-    const waUrl = `https://wa.me/${STORE_WHATSAPP_PHONE}?text=${encoded}`;
-    window.open(waUrl, "_blank");
+    window.open(
+      `https://wa.me/${STORE_WHATSAPP_PHONE}?text=${encoded}`,
+      "_blank"
+    );
     postShareCleanup();
   };
-
   gmailBtn.onclick = () => {
     const subject = `Enquiry — Prayag Agro Store`;
     const body = message;
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=${encodeURIComponent(
-      STORE_EMAIL
-    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(gmailUrl, "_blank");
+    window.open(
+      `https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=${encodeURIComponent(
+        STORE_EMAIL
+      )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      "_blank"
+    );
     const mailto = `mailto:${encodeURIComponent(
       STORE_EMAIL
     )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setTimeout(() => {
-      window.location.href = mailto;
-    }, 200);
+    setTimeout(() => (window.location.href = mailto), 200);
     postShareCleanup();
   };
-
   backdrop.style.display = "flex";
   backdrop.setAttribute("aria-hidden", "false");
 }
 function hideShareOptions() {
-  const backdrop = qs("#shareBackdrop");
-  if (!backdrop) return;
-  backdrop.style.display = "none";
-  backdrop.setAttribute("aria-hidden", "true");
+  const b = $("#shareBackdrop");
+  if (!b) return;
+  b.style.display = "none";
+  b.setAttribute("aria-hidden", "true");
 }
 function postShareCleanup() {
   hideShareOptions();
-  const status = qs("#inqStatus");
-  if (status) {
-    status.textContent = "Inquiry sent (or opened in your email/WhatsApp).";
-    status.style.color = "green";
+  const s = $("#inqStatus");
+  if (s) {
+    s.textContent = "Inquiry sent (or opened in your email/WhatsApp).";
+    s.style.color = "green";
   }
-  const form = qs("#inquiryForm");
-  if (form) form.reset();
+  $("#inquiryForm")?.reset();
   setTimeout(() => {
-    const preview = qs("#sharePreview");
-    if (preview) preview.textContent = "";
-    if (qs("#inqStatus")) qs("#inqStatus").textContent = "";
+    $("#sharePreview") && ($("#sharePreview").textContent = "");
+    if ($("#inqStatus")) $("#inqStatus").textContent = "";
   }, 3500);
 }
 function confirmAndClose() {
   hideShareOptions();
 }
 
-/* ========== Hero slider (6 images) ==========
-   - autoplay with pause on hover/focus
-   - dots, prev/next, touch swipe, keyboard nav
-*/
+/* ========== Hero slider (6 slides) ========== */
 function initHeroSlider() {
-  const slider = document.getElementById("heroSlider");
+  const slider = $("#heroSlider");
   if (!slider) return;
-
   const slides = Array.from(slider.querySelectorAll(".slide"));
   const prevBtn = slider.querySelector(".slider-btn.prev");
   const nextBtn = slider.querySelector(".slider-btn.next");
   const dotsWrap = slider.querySelector(".slider-dots");
-
   let current = slides.findIndex((s) => s.classList.contains("active"));
   if (current < 0) current = 0;
   const total = slides.length || 1;
@@ -411,14 +390,12 @@ function initHeroSlider() {
       dotsWrap.appendChild(b);
     }
   }
-
   function show(i) {
     slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
-    if (dotsWrap) {
+    if (dotsWrap)
       Array.from(dotsWrap.children).forEach((d, idx) =>
         d.classList.toggle("active", idx === i)
       );
-    }
     current = i;
   }
   function go(i) {
@@ -465,7 +442,6 @@ function initHeroSlider() {
   slider.addEventListener("mouseleave", () => (autoplay = true));
   slider.addEventListener("focusin", () => (autoplay = false));
   slider.addEventListener("focusout", () => (autoplay = true));
-
   slider.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") {
       prev();
@@ -478,7 +454,6 @@ function initHeroSlider() {
   });
   slider.setAttribute("tabindex", "0");
 
-  // touch swipe
   let startX = 0;
   slider.addEventListener(
     "touchstart",
@@ -487,97 +462,90 @@ function initHeroSlider() {
     },
     { passive: true }
   );
-  slider.addEventListener("touchend", (e) => {
-    const endX = (e.changedTouches && e.changedTouches[0].clientX) || 0;
-    const diff = endX - startX;
-    if (Math.abs(diff) > 40) {
-      if (diff < 0) next();
-      else prev();
-      resetAutoplay();
-    }
-  });
+  slider.addEventListener(
+    "touchend",
+    (e) => {
+      const endX = (e.changedTouches && e.changedTouches[0].clientX) || 0;
+      const diff = endX - startX;
+      if (Math.abs(diff) > 40) {
+        if (diff < 0) next();
+        else prev();
+        resetAutoplay();
+      }
+    },
+    { passive: true }
+  );
 
   buildDots();
   show(current);
   startAutoplay();
-
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) stopAutoplay();
     else startAutoplay();
   });
 }
 
-/* ========== Accessibility: open product on Enter when card focused ==========
-   - ensures keyboard users can open product details
-*/
+/* ========== keyboard access for product cards ========== */
 function enableCardKeyboardOpen() {
-  qsa("#productGrid .card").forEach((card) => {
+  $$("#productGrid .card").forEach((card) => {
     card.setAttribute("tabindex", card.getAttribute("tabindex") || "0");
     card.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
-        const detailsBtn = card.querySelector(".ghost");
-        if (detailsBtn) detailsBtn.click();
+        const d = card.querySelector(".ghost");
+        if (d) d.click();
       }
     });
   });
 }
 
-/* ========== Initialization ==========
-   Single DOMContentLoaded handler wires everything once
-*/
+/* ========== initialization ========== */
 document.addEventListener("DOMContentLoaded", () => {
-  // Nav wiring
-  wireNavButtons();
-
-  // Filters
+  wireHeaderButtons();
+  wireMobileDelegation();
   initFilters();
-
-  // Enquiry badge
   updateEnquiryBadge();
-
-  // Product keyboard access
   enableCardKeyboardOpen();
-
-  // Hero slider
   initHeroSlider();
 
-  // Year in footer
-  const yEl = qs("#year");
-  if (yEl) yEl.textContent = String(new Date().getFullYear());
-
-  // ensure mobile menu hidden initially (safe)
-  const menu = qs("#mobileMenu");
-  if (menu) {
-    menu.style.display = "none";
-    menu.setAttribute("aria-hidden", "true");
-    menu.setAttribute("data-open", "false");
+  // wire mobile toggle (the visible hamburger)
+  const mt = $(".menu-toggle");
+  if (mt && !mt.__wired) {
+    mt.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    });
+    mt.__wired = true;
   }
-  qs(".menu-toggle")?.setAttribute("aria-expanded", "false");
 
-  // Close mobile menu when resizing to wide screens
+  // ensure mobile nav hidden initially
+  const nav = $(".nav-links");
+  if (nav) {
+    nav.classList.remove("open");
+    $(".menu-toggle")?.setAttribute("aria-expanded", "false");
+  }
+
+  // footer year
+  const y = $("#year");
+  if (y) y.textContent = String(new Date().getFullYear());
+
+  // close mobile menu on resize
   window.addEventListener("resize", () => {
-    const menu = qs("#mobileMenu");
-    if (!menu) return;
     if (window.innerWidth > 768) {
-      menu.style.display = "none";
-      menu.setAttribute("aria-hidden", "true");
-      menu.setAttribute("data-open", "false");
-      qs(".menu-toggle")?.setAttribute("aria-expanded", "false");
+      $(".nav-links")?.classList.remove("open");
+      $(".menu-toggle")?.setAttribute("aria-expanded", "false");
     }
   });
 
-  // Global keyboard handling for escape
+  // ESC closure
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
       closeModal();
       hideShareOptions();
-      // close mobile menu if open
-      const menu = qs("#mobileMenu");
-      if (menu && menu.getAttribute("data-open") === "true") {
-        menu.style.display = "none";
-        menu.setAttribute("aria-hidden", "true");
-        menu.setAttribute("data-open", "false");
-        qs(".menu-toggle")?.setAttribute("aria-expanded", "false");
+      const navlinks = $(".nav-links");
+      if (navlinks && navlinks.classList.contains("open")) {
+        navlinks.classList.remove("open");
+        $(".menu-toggle")?.setAttribute("aria-expanded", "false");
       }
     }
   });

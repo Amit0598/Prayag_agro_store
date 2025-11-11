@@ -14,10 +14,9 @@
     />
     <link rel="stylesheet" href="style.css" />
   </head>
-
   <body id="home">
     <!-- NAVBAR -->
-    <header id="navbar" class="navbar site-header" role="banner">
+    <header id="navbar" class="site-header" role="banner" aria-label="Top">
       <div class="brand">
         <div class="logo">
           <img src="prayag_agro_logo.png" alt="Prayag Agro Store Logo" />
@@ -28,47 +27,45 @@
         </div>
       </div>
 
-      <nav class="nav-links nav" aria-label="Main navigation">
-        <button class="btn" onclick="scrollToId('home')">Home</button>
-        <button class="btn" onclick="scrollToId('products')">Products</button>
-        <button class="btn" onclick="scrollToId('services')">Services</button>
-        <button class="btn primary" onclick="scrollToId('enquiry')">
-          Enquire Now
-        </button>
-        <button class="btn" onclick="scrollToId('contact')">Contact</button>
+      <nav class="nav-links" aria-label="Main navigation">
+        <button class="btn" data-target="home">Home</button>
+        <button class="btn" data-target="products">Products</button>
+        <button class="btn" data-target="services">Services</button>
+        <button class="btn" data-target="contact">Contact</button>
+        <button class="btn primary" data-target="services">Enquire Now</button>
+
+        <button id="adminLoginTrigger" class="btn admin">Admin Login</button>
+        <div id="adminControls" class="admin-controls" style="display: none">
+          <button
+            class="btn ghost"
+            id="adminDashboardBtn"
+            data-target="adminPanel"
+          >
+            Dashboard
+          </button>
+          <button class="btn danger" id="adminLogoutBtn">Logout</button>
+        </div>
       </nav>
 
       <button
         class="menu-toggle"
         aria-label="Toggle menu"
         aria-expanded="false"
-        onclick="toggleMenu()"
       >
         ☰
       </button>
     </header>
 
-    <!-- MOBILE MENU -->
-    <div id="mobileMenu" class="mobile-menu" aria-hidden="true">
-      <button onclick="scrollToId('home')">Home</button>
-      <button onclick="scrollToId('products')">Products</button>
-      <button onclick="scrollToId('services')">Services</button>
-      <button onclick="scrollToId('contact')">Contact</button>
-      <button class="primary" onclick="scrollToId('enquiry')">
-        Enquire Now
-      </button>
-    </div>
-
-    <!-- HERO (LEFT SMALL / RIGHT LARGE) -->
+    <!-- HERO -->
     <section class="hero" aria-label="Introduction">
       <div class="hero-inner">
-        <!-- LEFT SIDE (TEXT) -->
         <div class="hero-left">
           <h2>Everything for Healthier Crops</h2>
           <p>
             Prayag Agro Store provides high-quality pesticides, insecticides,
             vitamins, and spray machines — trusted by local farmers.
           </p>
+
           <div class="features">
             <span class="chip">Pesticides</span>
             <span class="chip">Insecticides</span>
@@ -76,17 +73,25 @@
             <span class="chip">Spray Machines</span>
             <span class="chip">Expert Advice</span>
           </div>
+
           <div class="hero-actions">
-            <button class="btn primary" onclick="scrollToId('products')">
-              Shop Products
+            <button
+              id="heroShopBtn"
+              class="btn colorful"
+              data-target="products"
+            >
+              🎯 Shop Products
             </button>
-            <button class="btn" onclick="scrollToId('contact')">
-              Contact Us
+            <button
+              id="heroContactBtn"
+              class="btn colorful-outline"
+              data-target="services"
+            >
+              📬 Contact Us
             </button>
           </div>
         </div>
 
-        <!-- RIGHT SIDE (LARGE SLIDER) -->
         <div class="hero-right">
           <div
             class="hero-slider"
@@ -95,103 +100,91 @@
             tabindex="0"
           >
             <div class="slides">
-              <div class="slide active" data-index="0">
-                <img
-                  src="slider_1.jpg"
-                  alt="Agro image 1"
-                />
+              <div class="slide">
+                <img src="slider_1.jpg" alt="Agro image 1" />
               </div>
-              <div class="slide" data-index="1">
+              <div class="slide">
                 <img src="slider_2.jpg" alt="Agro image 2" />
               </div>
-              <div class="slide" data-index="2">
+              <div class="slide">
                 <img src="slider_3.jpg" alt="Agro image 3" />
               </div>
-              <div class="slide" data-index="3">
+              <div class="slide">
                 <img src="slider_4.jpg" alt="Agro image 4" />
               </div>
-              <div class="slide" data-index="4">
+              <div class="slide">
                 <img src="slider_5.jpg" alt="Agro image 5" />
               </div>
-              <div class="slide" data-index="5">
+              <div class="slide">
                 <img src="slider_6.jpg" alt="Agro image 6" />
               </div>
             </div>
 
-            <!-- Controls -->
-            <button class="slider-btn prev" aria-label="Previous slide">
-              ❮
-            </button>
-            <button class="slider-btn next" aria-label="Next slide">❯</button>
-
-            <!-- Dots -->
-            <div
-              class="slider-dots"
-              role="tablist"
-              aria-label="Hero slides"
-            ></div>
+            <button class="slider-btn prev">❮</button>
+            <button class="slider-btn next">❯</button>
+            <div class="slider-dots"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TEAM / MANAGEMENT (3 small cards) -->
-    <section class="team-section" aria-label="Store Management Team">
-      <div class="team-container">
-        <h3 class="team-title">Our Leadership Team</h3>
+    <!-- TEAM -->
+    <section class="team-section">
+      <div class="section-title">
+        <h3>Our Leadership Team</h3>
+        <p class="muted">
+          Experienced professionals driving Prayag Agro’s mission.
+        </p>
+      </div>
 
-        <div class="team-grid">
-          <!-- Founder -->
-          <div class="team-card" tabindex="0">
-            <div class="team-photo">
-              <img
-                src="prasad_pramod bhai.jpg"
-                alt="Founder - Prayag Agro Store"
-              />
+      <div class="team-grid team-grid-row">
+        <article class="team-card">
+          <div class="team-top">
+            <div class="team-photo circle">
+              <img src="prasad_pramod bhai.jpg" alt="Prasad Nahak" />
             </div>
-            <div class="team-info">
-              <h4>Mr. Prasad Nahak</h4>
-              <p class="designation">Ass.Director</p>
-              <p>
-                Visionary behind Prayag Agro Store, dedicated to empowering
-                farmers with quality agricultural solutions and honest guidance.
-              </p>
+            <div class="team-meta">
+              <h4 class="team-name">Mr. Prasad Nahak</h4>
+              <div class="team-designation">Ass. Director</div>
             </div>
           </div>
+          <div class="team-desc">
+            Visionary behind Prayag Agro Store, dedicated to empowering farmers
+            with sustainable inputs, field training and local support.
+          </div>
+        </article>
 
-          <!-- Director -->
-          <div class="team-card" tabindex="0">
-            <div class="team-photo">
-              <img
-                src="prayag_passphoto1.jpg"
-                alt="Director - Prayag Agro Store"
-              />
+        <article class="team-card">
+          <div class="team-top">
+            <div class="team-photo circle">
+              <img src="prayag_passphoto1.jpg" alt="Prayag Kumar Nahak" />
             </div>
-            <div class="team-info">
-              <h4>Mr. Prayag Kumar Nahak</h4>
-              <p class="designation">Director, Founder</p>
-              <p>
-                With 5+ years of expertise in agri-product distribution, he
-                leads with innovation and a commitment to sustainable growth.
-              </p>
+            <div class="team-meta">
+              <h4 class="team-name">Mr. Prayag Kumar Nahak</h4>
+              <div class="team-designation">Director, Founder</div>
             </div>
           </div>
+          <div class="team-desc">
+            5+ years experience in agri-product distribution and sustainable
+            growth; focused on procurement and partnerships.
+          </div>
+        </article>
 
-          <!-- Co-Founder -->
-          <div class="team-card" tabindex="0">
-            <div class="team-photo">
-              <img src="Amit.jpg" alt="Co-Founder - Prayag Agro Store" />
+        <article class="team-card">
+          <div class="team-top">
+            <div class="team-photo circle">
+              <img src="Amit.jpg" alt="Amit Kumar Nahak" />
             </div>
-            <div class="team-info">
-              <h4>Mr. Amit Kumar Nahak</h4>
-              <p class="designation">Co-Founder</p>
-              <p>
-                Driving modernization and customer experience at Prayag Agro
-                Store, he ensures seamless service and digital transformation.
-              </p>
+            <div class="team-meta">
+              <h4 class="team-name">Mr. Amit Kumar Nahak</h4>
+              <div class="team-designation">Co-Founder</div>
             </div>
           </div>
-        </div>
+          <div class="team-desc">
+            Driving modernization and customer experience — digital catalogues,
+            farmer demos and helpline programs.
+          </div>
+        </article>
       </div>
     </section>
 
@@ -199,268 +192,202 @@
     <section id="products" class="section">
       <div class="section-title">
         <h3>Products</h3>
-        <div class="filters">
+        <div class="filters" id="productFilters">
           <button class="filter-btn active" data-cat="all">All</button>
-          <button class="filter-btn" data-cat="pesticide">Pesticides</button>
-          <button class="filter-btn" data-cat="insecticide">
-            Insecticides
-          </button>
-          <button class="filter-btn" data-cat="vitamin">Vitamins</button>
+          <button class="filter-btn" data-cat="pesticide">Pesticide</button>
+          <button class="filter-btn" data-cat="insecticide">Insecticide</button>
+          <button class="filter-btn" data-cat="vitamins">Vitamins</button>
           <button class="filter-btn" data-cat="spray">Spray Machines</button>
+          <button class="filter-btn" data-cat="accessories">Accessories</button>
         </div>
       </div>
-
-      <div id="productGrid" class="grid">
-        <article class="card" data-cat="pesticide">
-          <div class="media">
-            <img
-              src="https://picsum.photos/seed/pest1/600/400"
-              alt="Pesticide"
-            />
-          </div>
-          <div class="body">
-            <h4>Pesticide A — 500 ml</h4>
-            <p class="meta">Effective on leaf pests</p>
-            <div class="actions">
-              <button class="ghost" onclick="openProduct(event, 1)">
-                Details
-              </button>
-              <button
-                class="primary"
-                onclick="addToEnquiry(1,'Pesticide A — 500 ml', this)"
-              >
-                Enquire
-              </button>
-            </div>
-          </div>
-        </article>
-
-        <article class="card" data-cat="insecticide">
-          <div class="media">
-            <img
-              src="https://picsum.photos/seed/insec1/600/400"
-              alt="Insecticide"
-            />
-          </div>
-          <div class="body">
-            <h4>Insecticide B — 250 ml</h4>
-            <p class="meta">Fast knockdown formula</p>
-            <div class="actions">
-              <button class="ghost" onclick="openProduct(event, 2)">
-                Details
-              </button>
-              <button
-                class="primary"
-                onclick="addToEnquiry(2,'Insecticide B — 250 ml', this)"
-              >
-                Enquire
-              </button>
-            </div>
-          </div>
-        </article>
-
-        <article class="card" data-cat="vitamin">
-          <div class="media">
-            <img
-              src="https://picsum.photos/seed/vit1/600/400"
-              alt="Plant Vitamin"
-            />
-          </div>
-          <div class="body">
-            <h4>Plant Vitamin C — 100 gm</h4>
-            <p class="meta">Improves root & foliage health</p>
-            <div class="actions">
-              <button class="ghost" onclick="openProduct(event, 3)">
-                Details
-              </button>
-              <button
-                class="primary"
-                onclick="addToEnquiry(3,'Plant Vitamin C — 100 gm', this)"
-              >
-                Enquire
-              </button>
-            </div>
-          </div>
-        </article>
-
-        <article class="card" data-cat="spray">
-          <div class="media">
-            <img
-              src="https://picsum.photos/seed/spray1/600/400"
-              alt="Spray Machine"
-            />
-          </div>
-          <div class="body">
-            <h4>Manual Spray Machine — 16L</h4>
-            <p class="meta">Durable with adjustable nozzle</p>
-            <div class="actions">
-              <button class="ghost" onclick="openProduct(event, 4)">
-                Details
-              </button>
-              <button
-                class="primary"
-                onclick="addToEnquiry(4,'Manual Spray Machine — 16L', this)"
-              >
-                Enquire
-              </button>
-            </div>
-          </div>
-        </article>
-      </div>
+      <div id="productGrid" class="grid product-grid-compact"></div>
     </section>
 
     <!-- SERVICES -->
     <section id="services" class="section">
       <div class="section-title"><h3>Services</h3></div>
-      <p>
-        Expert advice, custom product mixes, and spray machine servicing
-        available.
-      </p>
-
-      <div class="service-grid">
-        <!-- Inquiry Form -->
-        <div class="inquiry-form">
-          <h4>Quick Inquiry Form</h4>
-          <form id="inquiryForm" onsubmit="submitInquiry(event)" novalidate>
+      <div class="service-grid services-v2">
+        <div class="inquiry-card left-card form-card">
+          <h4 class="form-heading">Quick Inquiry Form</h4>
+          <form
+            id="inquiryForm"
+            class="clean-classic-form"
+            onsubmit="submitInquiry(event)"
+          >
             <label for="inqName">Name</label>
             <input
               id="inqName"
-              name="name"
               type="text"
-              required
               placeholder="Enter your name"
+              required
             />
             <label for="inqPhone">Phone</label>
             <input
               id="inqPhone"
-              name="phone"
               type="tel"
-              required
               placeholder="Enter your phone"
+              required
             />
             <label for="inqEmail">Email</label>
-            <input
-              id="inqEmail"
-              name="email"
-              type="email"
-              placeholder="Enter your email"
-            />
+            <input id="inqEmail" type="email" placeholder="Enter your email" />
             <label for="inqMsg">Message</label>
             <textarea
               id="inqMsg"
-              name="message"
-              rows="3"
+              rows="5"
               placeholder="Write your message..."
             ></textarea>
-
-            <div
-              style="
-                display: flex;
-                gap: 0.6rem;
-                align-items: center;
-                margin-top: 0.6rem;
-              "
-            >
-              <button class="btn primary" type="submit">Submit Inquiry</button>
+            <div class="form-actions-row">
+              <button class="btn submit-green" type="submit">
+                Submit Inquiry
+              </button>
               <button
-                class="btn"
+                class="btn small-reset"
                 type="button"
                 onclick="document.getElementById('inquiryForm').reset()"
               >
                 Reset
               </button>
-              <p
-                id="inqStatus"
-                class="form-status"
-                style="margin: 0 0 0 0.6rem"
-              ></p>
             </div>
+            <p id="inqStatus" class="form-status"></p>
           </form>
         </div>
 
-        <!-- Location -->
-        <div class="shop-location">
+        <!-- Fixed location map -->
+        <div class="map-card right-card">
           <h4>Our Location</h4>
-          <div class="map-container">
+          <p class="muted">
+            Tap “Open in Maps” to view the store on Google Maps app.
+          </p>
+          <div class="map-wrap">
             <iframe
-              src="https://www.google.com/maps?q=18.7057514,82.8527222&z=16&output=embed"
+              id="storeMap"
+              title="Prayag Agro Store Location"
+              src="about:blank"
+              width="100%"
+              height="400"
+              style="border: 0; border-radius: 10px"
               loading="lazy"
             ></iframe>
+            <div class="map-overlay">
+              <strong>Prayag Agro Store</strong>
+              <p>
+                Diandein, Badasahi, Madhurachua, Rambha<br />Dist. Ganjam —
+                761028
+              </p>
+              <a
+                class="btn ghost"
+                id="openMapsBtn"
+                href="https://www.google.com/maps?q=19.500032,85.104318"
+                target="_blank"
+                >Open in Maps</a
+              >
+            </div>
           </div>
-
-          <p><strong>📍 Address:</strong></p>
-          <p>
-            Diandein, Badasahi,<br />Madhurachua,Rambha Dist. Ganjam, Odisha —
-            761028
-          </p>
-          <a
-            href="https://maps.app.goo.gl/GpHTrxvghyGcEU5o9?g_st=aw"
-            target="_blank"
-            rel="noopener"
-            class="btn"
-            >Open in Google Maps</a
-          >
         </div>
       </div>
     </section>
 
-    <!-- SHARE OPTIONS MODAL (WhatsApp / Gmail) -->
-    <div
-      id="shareBackdrop"
-      class="modal-backdrop"
-      aria-hidden="true"
-      style="display: none"
-    >
-      <div
-        class="share-modal modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="shareTitle"
-      >
-        <div class="modal-header">
-          <h3 id="shareTitle">Send Inquiry</h3>
-          <button
-            class="close-btn"
-            onclick="hideShareOptions()"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+    <!-- ADMIN PANEL -->
+    <section id="adminPanel" class="section admin-panel" style="display: none">
+      <div class="section-title">
+        <h3>Admin Dashboard</h3>
+        <p class="muted">
+          Add, edit or remove products (demo — stored locally in this browser).
+        </p>
+      </div>
+
+      <div class="admin-grid">
+        <!-- Left: Product form -->
+        <div class="admin-card admin-form-card">
+          <h4 id="adminFormTitle">Add New Product</h4>
+
+          <form id="productForm">
+            <input type="hidden" id="prodId" value="" />
+
+            <label for="prodTitle">Title</label>
+            <input
+              id="prodTitle"
+              type="text"
+              placeholder="e.g. Pesticide A — 500 ml"
+              required
+            />
+
+            <label for="prodCategory">Category</label>
+            <select id="prodCategory" required>
+              <option value="pesticide">Pesticide</option>
+              <option value="insecticide">Insecticide</option>
+              <option value="vitamins">Vitamins</option>
+              <option value="spray">Spray Machines</option>
+              <option value="accessories">Accessories</option>
+            </select>
+
+            <label for="prodPrice">Price</label>
+            <input id="prodPrice" type="text" placeholder="₹120" />
+
+            <label for="prodImageFile">Upload Product Image</label>
+            <input id="prodImageFile" type="file" accept="image/*" />
+            <div
+              id="prodImagePreviewWrap"
+              style="display: none; margin-top: 8px"
+            >
+              <img
+                id="prodImagePreview"
+                src=""
+                alt="Preview"
+                style="
+                  width: 140px;
+                  height: 90px;
+                  object-fit: cover;
+                  border-radius: 8px;
+                  box-shadow: 0 8px 20px rgba(18, 50, 18, 0.06);
+                "
+              />
+            </div>
+
+            <label for="prodDesc">Description</label>
+            <textarea
+              id="prodDesc"
+              rows="3"
+              placeholder="Short description"
+            ></textarea>
+
+            <div class="form-row" style="margin-top: 10px">
+              <button class="btn primary" type="submit" id="saveProdBtn">
+                Save Product
+              </button>
+              <button class="btn" type="button" id="prodResetBtn">Reset</button>
+              <button
+                class="btn danger"
+                type="button"
+                id="prodDeleteBtn"
+                style="margin-left: auto; display: none"
+              >
+                Delete
+              </button>
+            </div>
+
+            <p
+              id="prodFormStatus"
+              class="form-status"
+              style="margin-top: 8px"
+            ></p>
+          </form>
         </div>
 
-        <div style="margin-top: 0.6rem">
-          <p
-            id="sharePreview"
-            style="white-space: pre-wrap; color: var(--text)"
-          ></p>
-
+        <!-- Right: Existing products list (admin) -->
+        <div class="admin-card admin-list-card">
+          <h4>Products (Admin View)</h4>
           <div
-            style="
-              display: flex;
-              gap: 0.6rem;
-              margin-top: 0.8rem;
-              flex-wrap: wrap;
-            "
-          >
-            <button id="whatsappBtn" class="btn primary">
-              Send via WhatsApp
-            </button>
-            <button id="gmailBtn" class="btn">Send via Gmail</button>
-            <button class="btn" onclick="confirmAndClose()">
-              Done (Close)
-            </button>
-          </div>
-
-          <p style="font-size: 0.9rem; color: var(--muted); margin-top: 0.6rem">
-            Click WhatsApp to open WhatsApp Web/app (pre-filled) or Gmail to
-            open Gmail compose.
-          </p>
+            id="adminProductList"
+            style="display: grid; gap: 10px; margin-top: 8px"
+          ></div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- PRODUCT MODAL -->
-    <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <!-- PRODUCT DETAILS MODAL -->
+    <div id="modalBackdrop" class="modal-backdrop" style="display: none">
       <div
         class="modal"
         role="dialog"
@@ -468,14 +395,81 @@
         aria-labelledby="modalTitle"
       >
         <div class="modal-header">
-          <h3 id="modalTitle">Product Title</h3>
-          <button class="close-btn" onclick="closeModal()" aria-label="Close">
+          <h3 id="modalTitle">Product</h3>
+          <button
+            class="close-btn"
+            onclick="document.getElementById('modalBackdrop').style.display='none'"
+          >
             ✕
           </button>
         </div>
-        <div class="media"><img id="modalImage" src="" alt="" /></div>
+        <div class="media">
+          <img
+            id="modalImage"
+            src=""
+            alt=""
+            style="width: 100%; border-radius: 8px; margin-top: 8px"
+          />
+        </div>
         <p id="modalDesc"></p>
         <p><strong id="modalPrice"></strong></p>
+      </div>
+    </div>
+
+    <!-- SHARE (WhatsApp / Gmail) -->
+    <div id="shareBackdrop" class="modal-backdrop" style="display: none">
+      <div class="share-modal modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h3>Send Inquiry</h3>
+          <button
+            class="close-btn"
+            onclick="document.getElementById('shareBackdrop').style.display='none'"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="sharePreview" style="white-space: pre-wrap"></p>
+          <div style="display: flex; gap: 8px; margin-top: 10px">
+            <button id="whatsappBtn" class="btn primary">
+              Send via WhatsApp
+            </button>
+            <button id="gmailBtn" class="btn">Send via Gmail</button>
+            <button
+              class="btn"
+              onclick="document.getElementById('shareBackdrop').style.display='none'"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN LOGIN MODAL -->
+    <div id="adminModal" class="modal-backdrop" style="display: none">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="adminModalTitle"
+      >
+        <div class="modal-header">
+          <h3 id="adminModalTitle">Admin Login</h3>
+          <button class="close-btn" onclick="closeAdminModal()">✕</button>
+        </div>
+        <form id="adminLoginForm" onsubmit="submitAdminLogin(event)">
+          <label>Username</label><input id="adminUser" required />
+          <label>Password</label
+          ><input id="adminPass" type="password" required />
+          <div class="form-row">
+            <button class="btn primary" type="submit">Login</button>
+            <button class="btn" type="button" onclick="closeAdminModal()">
+              Cancel
+            </button>
+          </div>
+          <p id="adminLoginStatus" class="form-status"></p>
+        </form>
       </div>
     </div>
 
@@ -487,5 +481,3 @@
     <script src="script.js"></script>
   </body>
 </html>
-
-

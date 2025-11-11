@@ -1,418 +1,126 @@
-/* script.js — Full, robust behaviors for Prayag Agro Store */
+/* script.js — Prayag Agro (admin CRUD with device upload, slider, inquiry, map) */
 
-/* ========== small helpers ========== */
+/* ---------- Config ---------- */
+const DEMO_ADMIN_USER = "admin";
+const DEMO_ADMIN_PASS = "password123";
+const SESSION_KEY = "prayag_admin_logged";
+const PROD_KEY = "prayag_products_v3";
+const STORE_WHATSAPP = "918144632145";
+const STORE_EMAIL = "prayagagrostore@gmail.com";
+const MAP_LAT = 19.500032;
+const MAP_LON = 85.104318;
+
+/* ---------- Helpers ---------- */
 const $ = (sel, ctx = document) => (ctx || document).querySelector(sel);
 const $$ = (sel, ctx = document) =>
   Array.from((ctx || document).querySelectorAll(sel));
+const uid = (prefix = "id") =>
+  `${prefix}_${Date.now().toString(36)}_${Math.floor(
+    Math.random() * 900 + 100
+  )}`;
+const escapeHtml = (s = "") =>
+  String(s).replace(
+    /[&<>"']/g,
+    (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+        m
+      ])
+  );
 
-/* ========== NAV: toggle & smooth scroll ========== */
+/* ---------- NAV / Mobile ---------- */
 function toggleMenu() {
-  const navLinks = $(".nav-links");
-  const toggle = $(".menu-toggle");
-  if (!navLinks || !toggle) return;
-
-  // stop bubbling so outside click handler doesn't immediately close it
-  try {
-    window.event?.stopPropagation?.();
-  } catch (e) {}
-
-  const nowOpen = navLinks.classList.toggle("open");
-  toggle.setAttribute("aria-expanded", String(nowOpen));
-
-  // manage outside click
-  if (nowOpen) {
-    // one-time outside click capture
-    const outside = (ev) => {
-      if (!navLinks.contains(ev.target) && !toggle.contains(ev.target)) {
-        navLinks.classList.remove("open");
-        toggle.setAttribute("aria-expanded", "false");
-        document.removeEventListener("click", outside, true);
-      }
-    };
-    // small delay to avoid immediate closure from the same click
-    setTimeout(() => document.addEventListener("click", outside, true), 40);
-  }
+  const nav = $(".nav-links");
+  if (!nav) return;
+  const now = nav.classList.toggle("open");
+  $(".menu-toggle")?.setAttribute("aria-expanded", String(now));
 }
+$(".menu-toggle")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  toggleMenu();
+});
 
-function scrollToId(id) {
-  if (!id) return false;
-  const el = document.getElementById(id);
-  if (!el) {
-    console.warn("scrollToId: no element", id);
-    return false;
-  }
-
-  // close mobile nav if open
-  const navLinks = $(".nav-links");
-  const menuToggle = $(".menu-toggle");
-  if (navLinks && navLinks.classList.contains("open")) {
-    navLinks.classList.remove("open");
-    menuToggle?.setAttribute("aria-expanded", "false");
-  }
-
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
-  try {
-    el.setAttribute("tabindex", "-1");
-    el.focus({ preventScroll: true });
-  } catch (e) {}
-  return true;
-}
-
-/* ========== wire header nav buttons (desktop) ========== */
-function wireHeaderButtons() {
-  // desktop/nav-links primary wiring: buttons inside .nav-links and .nav
-  $$(".nav-links .btn, .nav .btn, .nav-links a, .nav a").forEach((el) => {
-    if (el.__navWired) return;
-    el.__navWired = true;
-    el.addEventListener(
-      "click",
-      (ev) => {
-        // try to get target from data-target, href#id, or onclick pattern
-        const dt = el.dataset?.target;
-        if (dt) {
-          ev.preventDefault();
-          scrollToId(dt);
-          return;
-        }
-
-        const href = el.getAttribute("href");
-        if (href && href.startsWith("#")) {
-          ev.preventDefault();
-          scrollToId(href.slice(1));
-          return;
-        }
-
-        const onclick = el.getAttribute && el.getAttribute("onclick");
-        if (onclick) {
-          const m = onclick.match(/scrollToId\(['"]([^'"]+)['"]\)/);
-          if (m) {
-            ev.preventDefault();
-            scrollToId(m[1]);
-            return;
-          }
-        }
-
-        // otherwise allow custom handlers to run (e.g., open enquiry)
-      },
-      { passive: false }
-    );
-  });
-}
-
-/* ========== Mobile menu delegation (reliable for touch) ========== */
-function wireMobileDelegation() {
-  const mobile = $("#mobileMenu");
-  if (!mobile || mobile.__delegated) return;
-  mobile.__delegated = true;
-
-  const handle = (ev) => {
-    const btn = ev.target.closest("button, a");
-    if (!btn || !mobile.contains(btn)) return;
-    // attempt to extract id same as desktop
-    const dt = btn.dataset?.target;
-    if (dt) {
+function wireNavButtons() {
+  const navButtons = $$(".nav-links .btn, .hero-actions .btn");
+  navButtons.forEach((btn) => {
+    if (btn.__wired) return;
+    btn.__wired = true;
+    btn.addEventListener("click", (ev) => {
+      const t = btn.dataset.target;
+      if (!t) return;
       ev.preventDefault();
-      scrollToId(dt);
-      return;
-    }
-    const href = btn.getAttribute("href");
-    if (href && href.startsWith("#")) {
-      ev.preventDefault();
-      scrollToId(href.slice(1));
-      return;
-    }
-    const onclick = btn.getAttribute && btn.getAttribute("onclick");
-    if (onclick) {
-      const m = onclick.match(/scrollToId\(['"]([^'"]+)['"]\)/);
-      if (m) {
-        ev.preventDefault();
-        scrollToId(m[1]);
-        return;
+      const el = document.getElementById(t);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const nav = $(".nav-links");
+        if (nav && nav.classList.contains("open")) nav.classList.remove("open");
+        $(".menu-toggle")?.setAttribute("aria-expanded", "false");
       }
-    }
-    // else let other behavior run (like openEnquiry)
-  };
-
-  mobile.addEventListener("click", handle, { passive: false });
-  mobile.addEventListener("touchend", handle, { passive: false });
-}
-
-/* ========== Filters ========== */
-function initFilters() {
-  const buttons = $$(".filter-btn");
-  if (!buttons.length) return;
-  buttons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      buttons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const cat = btn.dataset.cat || "all";
-      $$("#productGrid .card").forEach((card) => {
-        card.style.display =
-          cat === "all" || card.dataset.cat === cat ? "" : "none";
-      });
     });
   });
 }
+wireNavButtons();
 
-/* ========== Enquiry cart ========== */
-let enquiry = [];
-function addToEnquiry(id, title, btnRef = null) {
-  if (!id || !title) return;
-  if (!enquiry.some((i) => i.id === id)) enquiry.push({ id, title });
-  updateEnquiryBadge();
-  try {
-    if (btnRef instanceof HTMLElement) {
-      const prev = btnRef.textContent;
-      btnRef.textContent = "Added";
-      btnRef.disabled = true;
-      setTimeout(() => {
-        btnRef.textContent = prev;
-        btnRef.disabled = false;
-      }, 900);
-    }
-  } catch (e) {}
-}
-function updateEnquiryBadge() {
-  const el = $("#enqCount");
-  if (el) el.textContent = String(enquiry.length);
-}
-function openEnquiry() {
-  if (!enquiry.length) {
-    alert(
-      "Your enquiry list is empty. Click 'Enquire' on product cards to add items."
-    );
-    return;
-  }
-  const items = enquiry.map((it) => `• ${it.title}`).join("\n");
-  const name = prompt(
-    `Enquiry details:\n${items}\n\nEnter your name to submit:`
-  );
-  if (name && name.trim()) {
-    alert(
-      `Thank you, ${name.trim()}! We received your enquiry and will contact you soon.`
-    );
-    enquiry = [];
-    updateEnquiryBadge();
-  }
-}
-
-/* ========== Product modal ========== */
-const modalBackdrop = $("#modalBackdrop");
-const modalTitle = $("#modalTitle");
-const modalImage = $("#modalImage");
-const modalDesc = $("#modalDesc");
-const modalPrice = $("#modalPrice");
-
-function openProduct(e, id) {
-  if (e && typeof e.stopPropagation === "function") e.stopPropagation();
-  const products = {
-    1: {
-      id: 1,
-      title: "Pesticide A — 500 ml",
-      desc: "Effective on leaf pests. Use as directed.",
-      price: "₹120",
-      img: "https://picsum.photos/seed/pest1/900/600",
-    },
-    2: {
-      id: 2,
-      title: "Insecticide B — 250 ml",
-      desc: "Fast knockdown formula. Follow label.",
-      price: "₹95",
-      img: "https://picsum.photos/seed/insec1/900/600",
-    },
-    3: {
-      id: 3,
-      title: "Plant Vitamin C — 100 gm",
-      desc: "Promotes root & foliage health.",
-      price: "₹180",
-      img: "https://picsum.photos/seed/vit1/900/600",
-    },
-    4: {
-      id: 4,
-      title: "Manual Spray Machine — 16L",
-      desc: "Durable pump and adjustable nozzle.",
-      price: "₹2,200",
-      img: "https://picsum.photos/seed/spray1/900/600",
-    },
-  };
-  const p = products[id] || {
-    id,
-    title: "Product",
-    desc: "Description not available.",
-    price: "—",
-    img: "https://picsum.photos/900/600",
-  };
-  modalTitle && (modalTitle.textContent = p.title);
-  modalDesc && (modalDesc.textContent = p.desc);
-  modalPrice && (modalPrice.textContent = p.price);
-  if (modalImage) {
-    modalImage.src = p.img;
-    modalImage.alt = p.title;
-  }
-  showModal();
-}
-function showModal() {
-  if (!modalBackdrop) return;
-  modalBackdrop.style.display = "flex";
-  modalBackdrop.setAttribute("aria-hidden", "false");
-  $(".modal")?.focus?.();
-}
-function closeModal() {
-  if (!modalBackdrop) return;
-  modalBackdrop.style.display = "none";
-  modalBackdrop.setAttribute("aria-hidden", "true");
-}
-modalBackdrop?.addEventListener("click", (ev) => {
-  if (ev.target === modalBackdrop) closeModal();
-});
-
-/* ========== Inquiry + share (WhatsApp/Gmail) ========== */
-const STORE_WHATSAPP_PHONE = "918144632145";
-const STORE_EMAIL = "prayagagrostore@gmai.com";
-
-function submitInquiry(ev) {
-  ev.preventDefault();
-  const name = ($("#inqName")?.value || "").trim();
-  const phone = ($("#inqPhone")?.value || "").trim();
-  const email = ($("#inqEmail")?.value || "").trim();
-  const msg = ($("#inqMsg")?.value || "").trim();
-  const status = $("#inqStatus");
-  if (!name || !phone) {
-    if (status) {
-      status.textContent = "Please enter your name and phone number.";
-      status.style.color = "crimson";
-    }
-    return;
-  }
-  if (status) {
-    status.textContent = "Preparing options...";
-    status.style.color = "gray";
-  }
-  const messageLines = [
-    "Enquiry from Prayag Agro Store website:",
-    `Name: ${name}`,
-    `Phone: ${phone}`,
-    email ? `Email: ${email}` : null,
-    msg ? `Message: ${msg}` : null,
-  ].filter(Boolean);
-  const message = messageLines.join("\n");
-  showShareOptions({ message });
-  if (status) {
-    status.textContent = "Choose WhatsApp or Gmail to send your enquiry.";
-    status.style.color = "green";
-  }
-}
-
-function showShareOptions({ message }) {
-  const backdrop = $("#shareBackdrop");
-  const preview = $("#sharePreview");
-  const whatsappBtn = $("#whatsappBtn");
-  const gmailBtn = $("#gmailBtn");
-  if (!backdrop || !preview || !whatsappBtn || !gmailBtn) return;
-  preview.textContent = message;
-  whatsappBtn.onclick = () => {
-    const encoded = encodeURIComponent(message);
-    window.open(
-      `https://wa.me/${STORE_WHATSAPP_PHONE}?text=${encoded}`,
-      "_blank"
-    );
-    postShareCleanup();
-  };
-  gmailBtn.onclick = () => {
-    const subject = `Enquiry — Prayag Agro Store`;
-    const body = message;
-    window.open(
-      `https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=${encodeURIComponent(
-        STORE_EMAIL
-      )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
-      "_blank"
-    );
-    const mailto = `mailto:${encodeURIComponent(
-      STORE_EMAIL
-    )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setTimeout(() => (window.location.href = mailto), 200);
-    postShareCleanup();
-  };
-  backdrop.style.display = "flex";
-  backdrop.setAttribute("aria-hidden", "false");
-}
-function hideShareOptions() {
-  const b = $("#shareBackdrop");
-  if (!b) return;
-  b.style.display = "none";
-  b.setAttribute("aria-hidden", "true");
-}
-function postShareCleanup() {
-  hideShareOptions();
-  const s = $("#inqStatus");
-  if (s) {
-    s.textContent = "Inquiry sent (or opened in your email/WhatsApp).";
-    s.style.color = "green";
-  }
-  $("#inquiryForm")?.reset();
-  setTimeout(() => {
-    $("#sharePreview") && ($("#sharePreview").textContent = "");
-    if ($("#inqStatus")) $("#inqStatus").textContent = "";
-  }, 3500);
-}
-function confirmAndClose() {
-  hideShareOptions();
-}
-
-/* ========== Hero slider (6 slides) ========== */
+/* ---------- HERO SLIDER ---------- */
 function initHeroSlider() {
   const slider = $("#heroSlider");
   if (!slider) return;
-  const slides = Array.from(slider.querySelectorAll(".slide"));
+  const slidesWrap = slider.querySelector(".slides");
+  const slides = Array.from(slidesWrap.children);
+  const dotsWrap = slider.querySelector(".slider-dots");
   const prevBtn = slider.querySelector(".slider-btn.prev");
   const nextBtn = slider.querySelector(".slider-btn.next");
-  const dotsWrap = slider.querySelector(".slider-dots");
-  let current = slides.findIndex((s) => s.classList.contains("active"));
-  if (current < 0) current = 0;
-  const total = slides.length || 1;
-  const delay = 4200;
-  let autoplay = true;
+  if (!slides.length) return;
+
+  let idx = 0;
+  const total = slides.length;
+  const delay = 4500;
   let timer = null;
 
-  function buildDots() {
-    if (!dotsWrap) return;
+  function show(i) {
+    idx = (i + total) % total;
+    slidesWrap.style.transform = `translateX(${-idx * 100}%)`;
+    if (dotsWrap) {
+      Array.from(dotsWrap.children).forEach((d, j) =>
+        d.classList.toggle("active", j === idx)
+      );
+    }
+  }
+
+  if (dotsWrap) {
     dotsWrap.innerHTML = "";
     for (let i = 0; i < total; i++) {
       const b = document.createElement("button");
       b.type = "button";
       b.setAttribute("aria-label", `Go to slide ${i + 1}`);
-      b.dataset.index = i;
       b.addEventListener("click", () => {
-        go(i);
+        show(i);
         resetAutoplay();
       });
-      if (i === current) b.classList.add("active");
       dotsWrap.appendChild(b);
     }
   }
-  function show(i) {
-    slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
-    if (dotsWrap)
-      Array.from(dotsWrap.children).forEach((d, idx) =>
-        d.classList.toggle("active", idx === i)
-      );
-    current = i;
-  }
-  function go(i) {
-    show((i + total) % total);
-  }
-  function next() {
-    go(current + 1);
-  }
-  function prev() {
-    go(current - 1);
-  }
+
+  prevBtn?.addEventListener("click", () => {
+    show(idx - 1);
+    resetAutoplay();
+  });
+  nextBtn?.addEventListener("click", () => {
+    show(idx + 1);
+    resetAutoplay();
+  });
+
+  slider.addEventListener("mouseenter", () => {
+    stopAutoplay();
+  });
+  slider.addEventListener("mouseleave", () => {
+    startAutoplay();
+  });
+  slider.addEventListener("focusin", () => stopAutoplay());
+  slider.addEventListener("focusout", () => startAutoplay());
 
   function startAutoplay() {
     stopAutoplay();
-    timer = setInterval(() => {
-      if (autoplay) next();
-    }, delay);
+    timer = setInterval(() => show(idx + 1), delay);
   }
   function stopAutoplay() {
     if (timer) {
@@ -421,132 +129,475 @@ function initHeroSlider() {
     }
   }
   function resetAutoplay() {
-    autoplay = false;
     stopAutoplay();
-    setTimeout(() => {
-      autoplay = true;
-      startAutoplay();
-    }, 3000);
+    setTimeout(startAutoplay, 2500);
   }
 
-  prevBtn?.addEventListener("click", () => {
-    prev();
-    resetAutoplay();
-  });
-  nextBtn?.addEventListener("click", () => {
-    next();
-    resetAutoplay();
-  });
-
-  slider.addEventListener("mouseenter", () => (autoplay = false));
-  slider.addEventListener("mouseleave", () => (autoplay = true));
-  slider.addEventListener("focusin", () => (autoplay = false));
-  slider.addEventListener("focusout", () => (autoplay = true));
-  slider.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft") {
-      prev();
-      resetAutoplay();
-    }
-    if (e.key === "ArrowRight") {
-      next();
-      resetAutoplay();
-    }
-  });
-  slider.setAttribute("tabindex", "0");
-
-  let startX = 0;
-  slider.addEventListener(
-    "touchstart",
-    (e) => {
-      startX = e.touches[0].clientX;
-    },
-    { passive: true }
-  );
-  slider.addEventListener(
-    "touchend",
-    (e) => {
-      const endX = (e.changedTouches && e.changedTouches[0].clientX) || 0;
-      const diff = endX - startX;
-      if (Math.abs(diff) > 40) {
-        if (diff < 0) next();
-        else prev();
-        resetAutoplay();
-      }
-    },
-    { passive: true }
-  );
-
-  buildDots();
-  show(current);
+  show(0);
   startAutoplay();
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopAutoplay();
-    else startAutoplay();
-  });
+  document.addEventListener("visibilitychange", () =>
+    document.hidden ? stopAutoplay() : startAutoplay()
+  );
+}
+initHeroSlider();
+
+/* ---------- MAP ---------- */
+function ensureStoreMap() {
+  const iframe = $("#storeMap");
+  if (!iframe) return;
+  const src = `https://maps.google.com/maps?q=${MAP_LAT},${MAP_LON}&z=16&output=embed`;
+  iframe.src = src;
+  const openBtn = $("#openMapsBtn");
+  if (openBtn)
+    openBtn.href = `https://www.google.com/maps?q=${MAP_LAT},${MAP_LON}`;
+}
+ensureStoreMap();
+
+/* ---------- STORAGE ---------- */
+function loadProducts() {
+  try {
+    return JSON.parse(localStorage.getItem(PROD_KEY) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function saveProducts(list) {
+  localStorage.setItem(PROD_KEY, JSON.stringify(list || []));
+}
+function addProduct(p) {
+  const list = loadProducts();
+  list.unshift(p);
+  saveProducts(list);
+}
+function updateProduct(p) {
+  const list = loadProducts().map((x) => (x.id === p.id ? p : x));
+  saveProducts(list);
+}
+function deleteProduct(id) {
+  const list = loadProducts().filter((x) => x.id !== id);
+  saveProducts(list);
 }
 
-/* ========== keyboard access for product cards ========== */
-function enableCardKeyboardOpen() {
-  $$("#productGrid .card").forEach((card) => {
-    card.setAttribute("tabindex", card.getAttribute("tabindex") || "0");
-    card.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") {
-        const d = card.querySelector(".ghost");
-        if (d) d.click();
-      }
+/* ---------- RENDER PRODUCT GRID ---------- */
+function renderProductGrid(filter = "all") {
+  const grid = $("#productGrid");
+  if (!grid) return;
+  const products = loadProducts();
+  const filtered =
+    filter === "all" ? products : products.filter((p) => p.category === filter);
+  grid.innerHTML = "";
+  if (!filtered.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:18px;color:var(--muted)">No products available.</div>`;
+    return;
+  }
+  filtered.forEach((p) => {
+    const card = document.createElement("article");
+    card.className = "card compact";
+    card.dataset.cat = p.category || "";
+    const imgSrc = p.image || "https://picsum.photos/seed/default/600/400";
+    card.innerHTML = `
+      <div class="thumb">
+        <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(
+      p.title
+    )}" loading="lazy" />
+        <div class="price-badge">${escapeHtml(p.price || "")}</div>
+        <div class="cat-badge">${escapeHtml(p.category || "")}</div>
+      </div>
+      <div class="body">
+        <h4>${escapeHtml(p.title)}</h4>
+        <p class="meta">${escapeHtml(p.description || "")}</p>
+        <div class="actions">
+          <div class="left">
+            <button class="icon-btn details-btn" data-id="${
+              p.id
+            }" title="Details">🔍</button>
+            <button class="icon-btn enquire-btn" data-id="${
+              p.id
+            }" data-title="${escapeHtml(p.title)}" title="Enquire">✉️</button>
+          </div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  $$(".details-btn").forEach((b) => {
+    b.addEventListener("click", () => openProductModal(b.dataset.id));
+  });
+  $$(".enquire-btn").forEach((b) => {
+    b.addEventListener("click", () => {
+      addToEnquiry(b.dataset.id, b.dataset.title);
+      alert("Added to enquiry list.");
     });
   });
 }
 
-/* ========== initialization ========== */
+/* ---------- ADMIN LIST ---------- */
+function renderAdminList() {
+  const wrap = $("#adminProductList");
+  if (!wrap) return;
+  const list = loadProducts();
+  wrap.innerHTML = "";
+  if (!list.length) {
+    wrap.innerHTML = `<div style="padding:12px;color:var(--muted)">No products yet. Add from the form.</div>`;
+    return;
+  }
+  list.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "admin-product-row";
+    row.innerHTML = `
+      <img src="${escapeHtml(
+        p.image || "https://picsum.photos/seed/default/120/80"
+      )}" alt="${escapeHtml(p.title)}" />
+      <div class="meta">
+        <div class="title">${escapeHtml(p.title)}</div>
+        <div class="sub">${escapeHtml(p.category)} • ${escapeHtml(
+      p.price || ""
+    )}</div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost admin-edit" data-id="${p.id}">Edit</button>
+        <button class="btn danger admin-delete" data-id="${
+          p.id
+        }">Delete</button>
+      </div>
+    `;
+    wrap.appendChild(row);
+  });
+
+  $$(".admin-edit").forEach((b) =>
+    b.addEventListener("click", () => startEditProduct(b.dataset.id))
+  );
+  $$(".admin-delete").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (!confirm("Delete this product?")) return;
+      deleteProduct(b.dataset.id);
+      renderAdminList();
+      renderProductGrid(getActiveFilter());
+    })
+  );
+}
+
+/* ---------- ADMIN FORM (file upload support) ---------- */
+function initAdminForm() {
+  const form = $("#productForm");
+  if (!form) return;
+
+  const fileInput = $("#prodImageFile");
+  const previewWrap = $("#prodImagePreviewWrap");
+  const previewImg = $("#prodImagePreview");
+  const deleteBtn = $("#prodDeleteBtn");
+  let uploadedImageData = "";
+
+  function resetForm() {
+    $("#prodId").value = "";
+    $("#prodTitle").value = "";
+    $("#prodCategory").value = "pesticide";
+    $("#prodPrice").value = "";
+    $("#prodDesc").value = "";
+    if (fileInput) fileInput.value = "";
+    uploadedImageData = "";
+    if (previewWrap) previewWrap.style.display = "none";
+    if (deleteBtn) deleteBtn.style.display = "none";
+    $("#adminFormTitle") &&
+      ($("#adminFormTitle").textContent = "Add New Product");
+    $("#prodFormStatus") && ($("#prodFormStatus").textContent = "");
+  }
+
+  function showPreview(src) {
+    uploadedImageData = src || "";
+    if (previewImg) previewImg.src = src || "";
+    if (previewWrap) previewWrap.style.display = src ? "block" : "none";
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) {
+        showPreview("");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        showPreview(ev.target.result);
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+
+  window.startEditProduct = function (id) {
+    const p = loadProducts().find((x) => x.id === id);
+    if (!p) return alert("Product not found");
+    $("#prodId").value = p.id;
+    $("#prodTitle").value = p.title || "";
+    $("#prodCategory").value = p.category || "pesticide";
+    $("#prodPrice").value = p.price || "";
+    $("#prodDesc").value = p.description || "";
+    if (p.image) {
+      showPreview(p.image);
+      if (fileInput) fileInput.value = "";
+    } else {
+      showPreview("");
+    }
+    if (deleteBtn) deleteBtn.style.display = "inline-block";
+    $("#adminFormTitle") && ($("#adminFormTitle").textContent = "Edit Product");
+    const panel = $("#adminPanel");
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const id = $("#prodId").value || uid("prod");
+    const title = $("#prodTitle").value.trim();
+    const category = $("#prodCategory").value;
+    const price = $("#prodPrice").value.trim();
+    const desc = $("#prodDesc").value.trim();
+
+    if (!title) {
+      $("#prodFormStatus").textContent = "Title is required.";
+      $("#prodFormStatus").style.color = "crimson";
+      return;
+    }
+
+    let imageToStore = uploadedImageData || "";
+    const obj = {
+      id,
+      title,
+      category,
+      price,
+      image: imageToStore,
+      description: desc,
+    };
+    const exists = loadProducts().some((p) => p.id === id);
+    if (exists) {
+      updateProduct(obj);
+      $("#prodFormStatus").textContent = "Product updated.";
+    } else {
+      addProduct(obj);
+      $("#prodFormStatus").textContent = "Product added.";
+    }
+    $("#prodFormStatus").style.color = "green";
+    renderAdminList();
+    renderProductGrid(getActiveFilter());
+    setTimeout(() => {
+      $("#prodFormStatus").textContent = "";
+    }, 2200);
+    resetForm();
+  });
+
+  $("#prodResetBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    resetForm();
+  });
+  $("#prodDeleteBtn")?.addEventListener("click", (e) => {
+    const id = $("#prodId").value;
+    if (!id) return;
+    if (!confirm("Delete this product permanently?")) return;
+    deleteProduct(id);
+    renderAdminList();
+    renderProductGrid(getActiveFilter());
+    resetForm();
+  });
+}
+initAdminForm();
+
+/* ---------- FILTERS ---------- */
+function initFilters() {
+  $$(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      $$(".filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderProductGrid(btn.dataset.cat || "all");
+    });
+  });
+}
+initFilters();
+function getActiveFilter() {
+  return (
+    ($(".filter-btn.active") && $(".filter-btn.active").dataset.cat) || "all"
+  );
+}
+
+/* ---------- PRODUCT MODAL ---------- */
+function openProductModal(id) {
+  const p = loadProducts().find((x) => x.id === id);
+  if (!p) return alert("Product not found");
+  if ($("#modalBackdrop")) {
+    $("#modalTitle").textContent = p.title || "Product";
+    $("#modalDesc").textContent = p.description || "";
+    $("#modalPrice").textContent = p.price || "";
+    $("#modalImage").src = p.image || "https://picsum.photos/900/600";
+    $("#modalBackdrop").style.display = "flex";
+  } else {
+    alert(`${p.title}\n\n${p.description}\n\nPrice: ${p.price || "-"}`);
+  }
+}
+$("#modalBackdrop")?.addEventListener("click", (ev) => {
+  if (ev.target === $("#modalBackdrop"))
+    $("#modalBackdrop").style.display = "none";
+});
+
+/* ---------- ENQUIRY ---------- */
+let enquiry = [];
+function addToEnquiry(id, title) {
+  if (!enquiry.some((x) => x.id === id)) enquiry.push({ id, title });
+  const adminCount = $("#adminEnquiryCount");
+  if (adminCount) adminCount.textContent = enquiry.length;
+}
+
+/* ---------- SHARE/INQUIRY ---------- */
+function submitInquiry(e) {
+  e.preventDefault();
+  const name = ($("#inqName")?.value || "").trim();
+  const phone = ($("#inqPhone")?.value || "").trim();
+  if (!name || !phone) {
+    $("#inqStatus").textContent = "Please enter name and phone.";
+    $("#inqStatus").style.color = "crimson";
+    return;
+  }
+  const email = ($("#inqEmail")?.value || "").trim();
+  const msg = ($("#inqMsg")?.value || "").trim();
+  const messageLines = [
+    "Enquiry — Prayag Agro Store",
+    `Name: ${name}`,
+    `Phone: ${phone}`,
+    email ? `Email: ${email}` : null,
+    msg ? `Message: ${msg}` : null,
+  ].filter(Boolean);
+  const message = messageLines.join("\n");
+  if ($("#shareBackdrop")) {
+    $("#sharePreview").textContent = message;
+    $("#shareBackdrop").style.display = "flex";
+    $("#whatsappBtn").onclick = () => {
+      window.open(
+        `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+      postShareCleanup();
+    };
+    $("#gmailBtn").onclick = () => {
+      window.open(
+        `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+          STORE_EMAIL
+        )}&su=${encodeURIComponent(
+          "Enquiry — Prayag Agro Store"
+        )}&body=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+      setTimeout(
+        () =>
+          (window.location.href = `mailto:${encodeURIComponent(
+            STORE_EMAIL
+          )}?subject=${encodeURIComponent(
+            "Enquiry — Prayag Agro Store"
+          )}&body=${encodeURIComponent(message)}`),
+        200
+      );
+      postShareCleanup();
+    };
+  } else {
+    if (confirm("Send via WhatsApp? Cancel -> Gmail")) {
+      window.open(
+        `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+    } else {
+      window.open(
+        `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+          STORE_EMAIL
+        )}&su=${encodeURIComponent(
+          "Enquiry — Prayag Agro Store"
+        )}&body=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+    }
+  }
+}
+function postShareCleanup() {
+  $("#shareBackdrop") && ($("#shareBackdrop").style.display = "none");
+  $("#inquiryForm") && $("#inquiryForm").reset();
+  $("#inqStatus") && ($("#inqStatus").textContent = "Sent / opened.");
+  setTimeout(() => {
+    $("#inqStatus") && ($("#inqStatus").textContent = "");
+  }, 3000);
+}
+
+/* ---------- ADMIN AUTH (demo) ---------- */
+function openAdminModal() {
+  $("#adminModal") && ($("#adminModal").style.display = "flex");
+}
+function closeAdminModal() {
+  $("#adminModal") && ($("#adminModal").style.display = "none");
+  $("#adminLoginForm") && $("#adminLoginForm").reset();
+  $("#adminLoginStatus") && ($("#adminLoginStatus").textContent = "");
+}
+function submitAdminLogin(e) {
+  e.preventDefault();
+  const u = $("#adminUser")?.value.trim();
+  const p = $("#adminPass")?.value.trim();
+  if (u === DEMO_ADMIN_USER && p === DEMO_ADMIN_PASS) {
+    sessionStorage.setItem(SESSION_KEY, "1");
+    applyAdminState(true);
+    closeAdminModal();
+  } else {
+    $("#adminLoginStatus").textContent = "Invalid credentials";
+    $("#adminLoginStatus").style.color = "crimson";
+  }
+}
+function applyAdminState(isAdmin) {
+  if (isAdmin) {
+    $("#adminControls") && ($("#adminControls").style.display = "flex");
+    $("#adminLoginTrigger") && ($("#adminLoginTrigger").style.display = "none");
+    $("#adminPanel") && ($("#adminPanel").style.display = "block");
+    renderAdminList();
+  } else {
+    $("#adminControls") && ($("#adminControls").style.display = "none");
+    $("#adminLoginTrigger") &&
+      ($("#adminLoginTrigger").style.display = "inline-block");
+    $("#adminPanel") && ($("#adminPanel").style.display = "none");
+  }
+}
+$("#adminLoginTrigger")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  openAdminModal();
+});
+$("#adminLogoutBtn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  sessionStorage.removeItem(SESSION_KEY);
+  applyAdminState(false);
+});
+$("#adminLoginForm")?.addEventListener("submit", submitAdminLogin);
+$("#adminDashboardBtn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  document.getElementById("adminPanel")?.scrollIntoView({ behavior: "smooth" });
+});
+
+/* ---------- INIT ---------- */
 document.addEventListener("DOMContentLoaded", () => {
-  wireHeaderButtons();
-  wireMobileDelegation();
-  initFilters();
-  updateEnquiryBadge();
-  enableCardKeyboardOpen();
+  wireNavButtons();
   initHeroSlider();
+  ensureStoreMap();
+  initAdminForm();
+  initFilters();
 
-  // wire mobile toggle (the visible hamburger)
-  const mt = $(".menu-toggle");
-  if (mt && !mt.__wired) {
-    mt.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleMenu();
-    });
-    mt.__wired = true;
-  }
+  renderProductGrid();
+  renderAdminList();
 
-  // ensure mobile nav hidden initially
-  const nav = $(".nav-links");
-  if (nav) {
-    nav.classList.remove("open");
-    $(".menu-toggle")?.setAttribute("aria-expanded", "false");
-  }
+  $("#inquiryForm")?.addEventListener("submit", submitInquiry);
 
-  // footer year
-  const y = $("#year");
-  if (y) y.textContent = String(new Date().getFullYear());
-
-  // close mobile menu on resize
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 768) {
-      $(".nav-links")?.classList.remove("open");
-      $(".menu-toggle")?.setAttribute("aria-expanded", "false");
-    }
+  // close share modal backdrop
+  $("#shareBackdrop")?.addEventListener("click", (ev) => {
+    if (ev.target === $("#shareBackdrop"))
+      $("#shareBackdrop").style.display = "none";
   });
 
-  // ESC closure
-  document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") {
-      closeModal();
-      hideShareOptions();
-      const navlinks = $(".nav-links");
-      if (navlinks && navlinks.classList.contains("open")) {
-        navlinks.classList.remove("open");
-        $(".menu-toggle")?.setAttribute("aria-expanded", "false");
-      }
-    }
+  // close product modal
+  $(".close-btn")?.addEventListener("click", () => {
+    $("#modalBackdrop") && ($("#modalBackdrop").style.display = "none");
+    $("#adminModal") && ($("#adminModal").style.display = "none");
   });
+
+  $("#year") && ($("#year").textContent = String(new Date().getFullYear()));
+
+  applyAdminState(sessionStorage.getItem(SESSION_KEY) === "1");
 });
